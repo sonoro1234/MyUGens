@@ -1,0 +1,4 @@
+[submodule "DWGReverb"]
+	path = DWGReverb
+	url = https://github.com/sonoro1234/DWGReverb
+
