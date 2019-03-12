@@ -16,7 +16,7 @@
  *    along with this program; if not, write to the Free Software
  *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include "../DWGUGens/dwglib/DWG.cpp"
+#include "DWG.cpp"
 //#include "SC_PlugIn.h"
 //#define MAXDELAY 1024
 InterfaceTable *ft;
