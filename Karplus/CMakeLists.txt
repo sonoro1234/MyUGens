@@ -1,6 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
-project (Karplus)
-
+set(PROYECTO "Karplus")
 project (${PROYECTO})
 
 add_library(${PROYECTO} MODULE ${PROYECTO}.cpp)
