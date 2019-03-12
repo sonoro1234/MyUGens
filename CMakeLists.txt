@@ -67,4 +67,7 @@ InstallMyUgens(IIRf)
 add_subdirectory(AdachiAyers)
 InstallMyUgens(AdachiAyers)
 
+add_subdirectory(PitchTracker)
+InstallMyUgens(PitchTracker)
+
 add_subdirectory(DWGReverb)

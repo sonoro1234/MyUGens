@@ -11,6 +11,8 @@ DWGReverb
 
 Karplus 
 
+PitchTracker: when Tartini is not enough.
+
 IIRf for infinite impulse response filters
 
 KLJunction for Kelly-Lochbaum filter implementation
