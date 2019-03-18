@@ -123,6 +123,8 @@ PitchTracker::PitchTracker(Unit* unit):m_inbuf(NULL),m_pos(0){
 	//m_iscfft = fftwf_plan_r2r_1d(size, unit->autocorrFFT, unit->autocorrTime, FFTW_HC2R, FFTW_ESTIMATE);
 	SETCALC(PitchTracker_next);
 	
+	//Print("clear %f %f %f\n",ZIN0(8),ZIN0(7),ZIN0(6));
+	
 	ZOUT0(0) = m_freq;//ZIN0(0);
 	ZOUT0(1) = m_clarity;
 	ZOUT0(2) = R0;
@@ -334,7 +336,16 @@ void PeakFindSDF(PitchTracker *unit,float *data)
 				break;
 		}
 	}
-
+	
+	//parabollic interp
+	float maxposf = parabol_interpolation(data,maxpos,&maxval);
+	unit->m_clarity = maxval;
+	unit->m_freq = FULLRATE/maxposf;///SAMPLERATE;
+	if(unit->R0 < 1e-6){
+		unit->m_clarity = 0;
+		unit->m_freq = unit->m_efreq;///SAMPLERATE;
+	}
+	/*
 	//parabollic interp
 	float a = (data[maxpos+1]+data[maxpos-1])*0.5-data[maxpos];
 	float b = (data[maxpos+1]-data[maxpos-1])*0.5;
@@ -343,7 +354,7 @@ void PeakFindSDF(PitchTracker *unit,float *data)
 		maxposf = maxposf-b/(2*a);
 	}
 	
-	unit->m_freq = FULLRATE/maxposf;///SAMPLERATE;
+	unit->m_freq = FULLRATE/maxposf;///SAMPLERATE;*/
 }
 
 void PitchTracker_next(PitchTracker *unit, int wronginNumSamples)
@@ -356,6 +367,11 @@ void PitchTracker_next(PitchTracker *unit, int wronginNumSamples)
 	unit->m_useefreq = (int)ZIN0(6);
 	//int poles = (uint32)sc_min(unit->m_maxpoles,sc_max(4, ZIN0(3)));
 	int numSamples = unit->m_numSamples;
+	float t_clear = ZIN0(8);
+	if (t_clear > 0){
+		memset(unit->m_inbuf, 0, unit->m_audiosize * sizeof(float));
+		//Print("PitchTracker_next clear %f %f %d\n",t_clear,unit->m_threshold,unit->m_coefbufnum);
+	}
 
 
 	float *out = unit->m_inbuf + unit->m_pos + unit->m_shuntsize;
@@ -366,7 +382,7 @@ void PitchTracker_next(PitchTracker *unit, int wronginNumSamples)
 	if (unit->m_pos != unit->m_hopsize){// || !unit->m_fftsndbuf->data || unit->m_fftsndbuf->samples != unit->m_fullbufsize) {
 		if(unit->m_pos == unit->m_hopsize)
 			unit->m_pos = 0;
-		//Print("SonLPC m_pos %u\n",unit->m_pos);
+
 		ZOUT0(0) = unit->m_freq;
 		ZOUT0(1) = unit->m_clarity;
 		ZOUT0(2) = unit->R0;
