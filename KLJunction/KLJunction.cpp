@@ -866,7 +866,7 @@ void HumanVNdelO2_next(HumanVNdelO2 *unit, int inNumSamples) {
     //unit->del = sc_max(ZIN0(8),1.0);
     
     float * in_noise = IN(8);
-    int noiseloc = ZIN0(9);
+    int noiseloc = sc_min(ZIN0(9),numtubes);
     
     //get dels
     for(i=0;i<unit->numdels;i++)
@@ -924,9 +924,12 @@ void HumanVNdelO2_next(HumanVNdelO2 *unit, int inNumSamples) {
         unit->tubes[unit->numtubes-1]->inL = unit->Hlo*unit->rl;
         
         //fill noise
-        if(noiseloc > 0 && noiseloc <= numtubes)
+        if(noiseloc > 0){// && noiseloc <= numtubes){
             unit->tubes[noiseloc-1]->inR += inpnoise;
-        
+            unit->tubes[noiseloc-1]->inL += inpnoise;
+            //unit->tubes[noiseloc]->inR += inpnoise;
+            //unit->tubes[noiseloc]->inL += inpnoise;
+        }
         //advance tubes area1 and 2
         for (j=0; j<numtubes; ++j) {
             unit->tubes[j]->go();
