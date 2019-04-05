@@ -70,4 +70,7 @@ InstallMyUgens(AdachiAyers)
 add_subdirectory(PitchTracker)
 InstallMyUgens(PitchTracker)
 
+add_subdirectory(PluckSynth)
+InstallMyUgens(PluckSynth)
+
 add_subdirectory(DWGReverb)
