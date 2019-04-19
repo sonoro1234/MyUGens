@@ -73,4 +73,7 @@ InstallMyUgens(PitchTracker)
 add_subdirectory(PluckSynth)
 InstallMyUgens(PluckSynth)
 
+add_subdirectory(MembraneV)
+InstallMyUgens(MembraneV)
+
 add_subdirectory(DWGReverb)
