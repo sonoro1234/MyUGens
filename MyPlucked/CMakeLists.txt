@@ -1,6 +1,8 @@
-cmake_minimum_required (VERSION 3.13) #for subdirectory targets
+cmake_minimum_required (VERSION 2.8)
+set(PROYECTO "MyPlucked")
+project (${PROYECTO})
 
-
+############################################
 include_directories(${SC_PATH}/include/plugin_interface)
 include_directories(${SC_PATH}/include/common)
 include_directories(${SC_PATH}/common)
@@ -42,41 +44,15 @@ else()
     set(INSTALL_DESTINATION_DISTRO "Myplugins")
 endif()
 
-include_directories(DWGReverb/dwglib/)
+include_directories(../DWGReverb/dwglib/)
+#########################################
 
-include(cmake/functions.cmake)
 
-add_subdirectory(DWGClarinet)
-InstallMyUgens(DWGClarinet)
 
-add_subdirectory(DWGFlute)
-InstallMyUgens(DWGFlute)
 
-add_subdirectory(KLJunction)
-InstallMyUgens(KLJunction)
+add_library(${PROYECTO} MODULE ${PROYECTO}.cpp)
 
-add_subdirectory(SonLPC)
-InstallMyUgens(SonLPC)
-
-add_subdirectory(Karplus)
-InstallMyUgens(Karplus)
-
-add_subdirectory(IIRf)
-InstallMyUgens(IIRf)
-
-add_subdirectory(AdachiAyers)
-InstallMyUgens(AdachiAyers)
-
-add_subdirectory(PitchTracker)
-InstallMyUgens(PitchTracker)
-
-add_subdirectory(PluckSynth)
-InstallMyUgens(PluckSynth)
-
-add_subdirectory(MembraneV)
-InstallMyUgens(MembraneV)
-
-add_subdirectory(MyPlucked)
-InstallMyUgens(MyPlucked)
-
-add_subdirectory(DWGReverb)
+if (SUPERNOVA)
+    add_library(${PROYECTO}_supernova MODULE ${PROYECTO}.cpp)
+    set_property(TARGET ${PROYECTO}_supernova APPEND PROPERTY COMPILE_DEFINITIONS  "SUPERNOVA")
+endif()
