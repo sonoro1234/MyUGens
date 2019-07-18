@@ -119,6 +119,8 @@ static bool DelayUnit_AllocDelayLine(DelayUnit *unit, const char * className)
 void Karplus_Dtor(Karplus *unit)
 {
 	RTFree(unit->mWorld, unit->m_dlybuf);
+	RTFree(unit->mWorld, unit->m_coefsA);
+	RTFree(unit->mWorld, unit->m_valsX);
 }
 
 ////////////////////////////////
