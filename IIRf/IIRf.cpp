@@ -31,6 +31,7 @@ IIRf::IIRf(Unit *unit)
 	for(int i=0;i<nA;i++)
 		this->filter->KernelA[i] = IN0(3+nB+i);
 	SETCALC(IIRf_next);
+	(unit->mCalcFunc)(unit, 1);
 }
 
 void IIRf_Ctor(IIRf* unit)
