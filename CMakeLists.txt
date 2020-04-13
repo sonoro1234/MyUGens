@@ -14,7 +14,9 @@ set(CMAKE_SHARED_MODULE_PREFIX "")
 if(APPLE OR WIN32)
 	set(CMAKE_SHARED_MODULE_SUFFIX ".scx")
 endif()
-	
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+	set(CMAKE_COMPILER_IS_CLANG 1)
+endif()
 if (CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse2 -mstackrealign -mfpmath=sse")
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse2 -mstackrealign -mfpmath=sse")
@@ -78,5 +80,8 @@ InstallMyUgens(MembraneV)
 
 add_subdirectory(MyPlucked)
 InstallMyUgens(MyPlucked)
+
+##add_subdirectory(MyBowed)
+##InstallMyUgens(MyBowed)
 
 add_subdirectory(DWGReverb)
