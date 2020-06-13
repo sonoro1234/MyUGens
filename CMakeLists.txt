@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.13) #for subdirectory targets
-
+project (MyUGens)
 
 include_directories(${SC_PATH}/include/plugin_interface)
 include_directories(${SC_PATH}/include/common)
