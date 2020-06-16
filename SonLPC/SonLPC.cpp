@@ -173,7 +173,7 @@ void calcerrorD(float *S,float *error,int N,float *coef,int M)
 	int c;
 	for(a=0;a<N;a++){
    		tempo=0.;
-		limite=__min(a,M);
+		limite=sc_min(a,M);
    		for(b=1,c=a-1;b<=limite;b++,c--){
      		tempo+=coef[b]*S[c];
    		}
@@ -209,7 +209,7 @@ void sintesisD(float *O,float *E,int N,float *CO,int M,float G)
 	//int c;
 	for(int a=1;a<N;a++){
 		tempo=0.;
-		limite=__min(a,M);
+		limite=sc_min(a,M);
    		for(int c=a-1,b=1;b<=limite;b++,c--){	
     	//	O[a]+=CO[b]*O[a-b];
 		//	tempo+=CO[b]*O[a-b];
