@@ -21,6 +21,11 @@
 //#define MAXDELAY 1024
 InterfaceTable *ft;
 
+// We include vDSP even if not using for FFT, since we want to use some vectorised add/mul tricks
+#if defined(__APPLE__) && !defined(SC_IPHONE)
+#    include <Accelerate/Accelerate.h>
+#endif
+
 
 ////////////////////////////////////////
 void makewindow(float *A,int N)
