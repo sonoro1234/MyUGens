@@ -271,7 +271,7 @@ void PeakFind(PitchTracker *unit,float *data)
 		unit->m_dodump = true;
 	}
 }
-float PeakFindBAK(PitchTracker *unit,float *data)
+void PeakFindBAK(PitchTracker *unit,float *data)
 {
 	//get maxpeak
 	float maxval = 0;

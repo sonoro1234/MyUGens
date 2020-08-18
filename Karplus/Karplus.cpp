@@ -124,7 +124,7 @@ void Karplus_Dtor(Karplus *unit)
 }
 
 ////////////////////////////////
-static bool Karplus_setCoefs(Karplus* unit)
+static void Karplus_setCoefs(Karplus* unit)
 {
 	unit->m_ncoefsA = IN0(6);
 	unit->m_ncoefsB = IN0(7);
