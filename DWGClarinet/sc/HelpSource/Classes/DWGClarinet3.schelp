@@ -1,0 +1,65 @@
+TITLE:: DWGClarinet3
+summary:: Clarinet physical model.
+categories:: UGens>PhysicalModels
+
+
+Description::
+
+Digital wave guide physical model of a Clarinet instrument.
+
+
+Classmethods::
+
+method::ar
+
+argument::freq
+Sound frequency.
+
+argument::pm
+Mouth pressure.
+
+argument::pc
+Close pressure.
+
+argument::m
+Slope of opening.
+
+argument::gate
+Releases synth when value changes from >0 to 0.
+
+argument::release
+Release time in seconds.
+
+argument::c1
+Inverse of DC decay time.
+
+argument::c3
+Hight frequency loss factor.
+
+
+Examples::
+
+code::
+//Define clarinet synthdef
+(
+SynthDef(\help_clarinet, { |out=0,freq=400,att=0.01,amp=0.5,ampn=1,pc= 1, m= 1.2, gate= 1, release= 0.01, c1= 0.2, c3= 7 ,pan=0|
+	var env,vib,son;
+	amp = LinLin.kr(amp,0,1,0.76,1);
+	env = EnvGen.ar(Env.asr(att,1,0.2,1),gate)*amp;
+	vib = SinOsc.kr(4,0,0.001,1);
+	son = DWGClarinet3.ar(Lag.kr(freq,0)*vib, env,pc,m, gate,release,c1,c3);
+    son = HPF.ar(son,200);
+    Out.ar(out, Pan2.ar(son , pan));
+}).add;
+)
+
+//Use it.
+(
+Pbind(
+    \instrument, \help_clarinet,
+    \dur , 0.25,
+    \degree, Pseq([1,5,7+3], inf),
+    \amp , Pseq([0.9,0.7,0.5],inf),
+).play;
+)
+::
