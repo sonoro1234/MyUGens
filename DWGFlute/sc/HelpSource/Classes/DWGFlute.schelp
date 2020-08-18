@@ -1,0 +1,61 @@
+TITLE:: DWGFlute
+summary:: Reimplementation of STK flute model.
+categories:: UGens>PhysicalModels
+
+
+Description::
+
+Digital wave guide physical model of a Flute instrument.
+
+
+Classmethods::
+
+method::ar
+
+argument::freq
+Sound frequency.
+
+argument::pm
+Mouth pressure.
+
+argument::endr
+End reflection coefficient.
+
+argument::jetr
+Jet reflection coefficient.
+
+argument::jetRa
+Jet delay as ratio to air column delay.
+
+argument::gate
+Releases synth when value changes from >0 to 0.
+
+argument::release
+Release time in seconds.
+
+
+Examples::
+
+code::
+//Define flute synthdef
+(
+SynthDef(\help_flute, { |out=0,freq=100,att=0.01,amp=0.5,endr= 0.5, jetr= 0.24,jetRa=0.33, gate= 1, release= 0.01,noisegain=12, pan=0|
+	var vib,env,signal;
+	vib = SinOsc.kr(4,0,0.003,1);
+	env = EnvGen.ar(Env.asr(att,1,0.2,1),gate)*(1.1 + (amp*0.2)) *(vib+(0.001*noisegain*WhiteNoise.ar()));
+	signal = DWGFlute.ar(freq, env,endr,jetr,jetRa, gate,release);
+	signal = HPF.ar(LPF.ar(signal,6000),200);
+	Out.ar(out,Pan2.ar(signal*0.2*amp,0));
+}).add;
+)
+
+//Use it.
+(
+Pbind(
+    \instrument, \help_flute,
+    \dur , 0.25,
+    \degree, Pseq([1,5,7+3], inf),
+    \amp , Pseq([0.9,0.7,0.5],inf),
+).play;
+)
+::
