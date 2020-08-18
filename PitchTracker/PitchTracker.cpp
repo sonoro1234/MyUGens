@@ -21,7 +21,7 @@
 //#define MAXDELAY 1024
 InterfaceTable *ft;
 
-
+//#define DOPRINT 1
 //////////////////////////////////////////////////////////
 struct PitchTracker:public Unit
 {
@@ -70,8 +70,9 @@ PitchTracker::PitchTracker(Unit* unit):m_inbuf(NULL),m_pos(0){
 	m_fftbufsize = NEXTPOWEROFTWO(m_audiosize);
 	m_fftbuf = (float *)RTAlloc(unit->mWorld,m_fftbufsize * sizeof(float));
 	m_audiosize = m_fftbufsize /2 ;
-	
+	#ifdef DOPRINT
 	Print("m_audiosize %f , %d\n",ZIN0(1),m_audiosize);
+	#endif
 	m_inbuf = (float *)RTAlloc(unit->mWorld,m_audiosize * sizeof(float));
 	memset(m_inbuf, 0, m_audiosize * sizeof(float));
 	
@@ -82,15 +83,21 @@ PitchTracker::PitchTracker(Unit* unit):m_inbuf(NULL),m_pos(0){
 	m_useefreq = (int)ZIN0(6);
 	
 	m_coefbufnum = (int)ZIN0(7);
+	#ifdef DOPRINT
 	Print("PitchTracker m_audiosize %d fftsize %d m_coefbufnum %d\n",m_audiosize,m_fftbufsize,m_coefbufnum);
+	#endif
 	m_coefsndbuf = NULL;
 	if (m_coefbufnum > -1)
 		m_coefsndbuf = ConvGetBuffer(unit, m_coefbufnum, "PitchTracker", 1);
 	if(!m_coefsndbuf){
 		m_coefbufnum = -1;
+		#ifdef DOPRINT
 		Print("m_coefsndbuf %p\n",m_coefsndbuf);
+		#endif
 	}else{
+		#ifdef DOPRINT
 		Print("m_coefsndbuf->samples %d\n",m_coefsndbuf->samples);
+		#endif
 		if(m_coefsndbuf->samples < m_audiosize){
 			m_coefbufnum = -1;
 			Print("buffer smaller than m_audiosize\n");
@@ -99,17 +106,23 @@ PitchTracker::PitchTracker(Unit* unit):m_inbuf(NULL),m_pos(0){
 	
 	int hopsize = (int)(sc_max(sc_min(ZIN0(2), 1.f), 0.f) * m_audiosize);
 	if (hopsize < unit->mWorld->mFullRate.mBufLength) {
+		#ifdef DOPRINT
 		Print("PitchTracker_Ctor: hopsize smaller than SC's block size (%i) - automatically corrected.\n", hopsize, unit->mWorld->mFullRate.mBufLength);
+		#endif
 		hopsize = unit->mWorld->mFullRate.mBufLength;
 	} else if (((int)(hopsize / unit->mWorld->mFullRate.mBufLength)) * unit->mWorld->mFullRate.mBufLength
 				!= hopsize) {
+		#ifdef DOPRINT
 		Print("PitchTracker_Ctor: hopsize (%i) not an exact multiple of SC's block size (%i) - automatically corrected.\n", hopsize, unit->mWorld->mFullRate.mBufLength);
+		#endif
 		hopsize = ((int)(hopsize / unit->mWorld->mFullRate.mBufLength)) * unit->mWorld->mFullRate.mBufLength;
 	}
 	
 	m_hopsize = hopsize;
 	m_shuntsize = m_audiosize - m_hopsize;
+	#ifdef DOPRINT
 	Print("anal hopsize %d\n",hopsize);
+	#endif
 	if (INRATE(0) == calc_FullRate) {
 		m_numSamples = unit->mWorld->mFullRate.mBufLength;
 	} else {
@@ -180,7 +193,9 @@ void PeakFindFreqMax(PitchTracker *unit,float *data)
 	float maxposf = parabol_interpolation(data,maxpos,&maxval);
 	unit->m_dodump = false;
 	if(maxpos > 700 || maxposf < 0 || maxpos < 2){
+		#ifdef DOPRINT
 		Print("PeakFindFreqMax maxpos %d lpos %d rpos %d\n",maxpos,lpos,rpos);
+		#endif
 		unit->m_dodump = true;
 	}
 	unit->m_clarity = maxval;
@@ -267,7 +282,9 @@ void PeakFind(PitchTracker *unit,float *data)
 	
 	unit->m_dodump = false;
 	if( maxpos ==1 || unit->m_freq> 1000){
+		#ifdef DOPRINT
 		Print("maxpos %d %f inipos %d lastpos %d m_freq %f R0 %f maxvalall %f prevmaxvalall %f pos %d\n",maxpos,maxval,inipos,lastpos,unit->m_freq, unit->R0,maxvalall,prevmaxvalall,prevmaxpos);
+		#endif
 		unit->m_dodump = true;
 	}
 }

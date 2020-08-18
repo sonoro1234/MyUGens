@@ -1,0 +1,63 @@
+class:: PitchTracker
+summary:: finds pitch by methods ACR, NSDF or SDF
+categories:: UGens>Analysis>Pitch
+related:: Classes/Pitch
+
+description::
+
+Pitch follower with 3 different methods.
+Returns estimated frequency, estimated clarity (0 to 1 on kind acr and nsdf) and R0 (power of signal)
+Argument size must be bigger for detecting lower frequencies (At 44100 sample rate a size of 4096 is necesary for 34Hz frequency detection)
+
+
+classmethods::
+method:: kr
+
+argument:: in
+signal to get pitch from.
+
+argument:: size
+size of buffer to perform autocorrelation. Must be power of two. Must be greater for detecting lower frequencies.
+
+argument:: hop
+fraction of size that triggers a new analysis.
+
+argument:: dfreq
+expected frequency (to accelerate analysis) only used if useef is 1.
+
+argument:: thresh
+minimum level of valid peak (from 0 to 1)
+
+argument:: kind
+kind of analysis, 0 ACR, 1 NSDF, 2 SDF(worst performant).
+
+argument:: useef
+use dfreq value to accelerate peak searching (1) or not (0).
+
+argument:: bufnum
+SndBuffer representing analysys. (-1 means no SndBuffer)
+
+argument:: t_clear
+zeroes analysis buffer when is not 0.
+
+EXAMPLES::
+
+code::
+
+(
+a= SynthDef("testpitchtracker",{arg infreq=440;
+    var in, freq, clar, pwr, out;
+
+    in=SinOsc.ar(infreq);
+
+    # freq, clar, pwr = PitchTracker.kr(in);
+
+    freq.poll;
+
+    Out.ar(0,[SinOsc.ar(freq,0.1),in]);
+}).play(s);
+)
+
+a.set(\infreq,301);
+::
+
