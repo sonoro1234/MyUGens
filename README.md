@@ -21,7 +21,7 @@ SonLPC for linear prediction analysis and synthesis.
 
 PluckSynth emulation of a plucked string from Fredrik Eckerholm, Gianpaolo Evangelista paper
 
-##compilation
+## compilation
 
 Get the sources with (the same you did with Supercollider repository)
 <code>
