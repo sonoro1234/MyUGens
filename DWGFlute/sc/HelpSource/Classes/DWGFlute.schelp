@@ -39,6 +39,13 @@ Examples::
 code::
 //Define flute synthdef
 (
+
+SynthDef(\reverb, {arg busin=0, busout=0,mix=0.8,bypass=0;
+	var inp = In.ar(busin,2); 
+	var son = DWGReverb3Band.ar(Mix(inp),2000)*mix+inp;
+	ReplaceOut.ar(busout,Select.ar(bypass,[son,inp]));
+}).add;
+
 SynthDef(\help_flute, { |out=0,freq=100,att=0.01,amp=0.5,endr= 0.5, jetr= 0.24,jetRa=0.33, gate= 1, release= 0.01,noisegain=12, pan=0|
 	var vib,env,signal;
 	vib = SinOsc.kr(4,0,0.003,1);
@@ -51,11 +58,15 @@ SynthDef(\help_flute, { |out=0,freq=100,att=0.01,amp=0.5,endr= 0.5, jetr= 0.24,j
 
 //Use it.
 (
-Pbind(
+a = Pbind(
     \instrument, \help_flute,
     \dur , 0.25,
     \degree, Pseq([1,5,7+3], inf),
     \amp , Pseq([0.9,0.7,0.5],inf),
-).play;
+);
+
+b = Pfx(a, \reverb);
+
+b.play;
 )
 ::

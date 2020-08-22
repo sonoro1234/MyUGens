@@ -42,6 +42,13 @@ Examples::
 code::
 //Define clarinet synthdef
 (
+
+SynthDef(\reverb, {arg busin=0, busout=0,mix=0.8,bypass=0;
+	var inp = In.ar(busin,2); 
+	var son = DWGReverb3Band.ar(Mix(inp),2000)*mix+inp;
+	ReplaceOut.ar(busout,Select.ar(bypass,[son,inp]));
+}).add;
+
 SynthDef(\help_clarinet, { |out=0,freq=400,att=0.01,amp=0.5,ampn=1,pc= 1, m= 1.2, gate= 1, release= 0.01, c1= 0.2, c3= 7 ,pan=0|
 	var env,vib,son;
 	amp = LinLin.kr(amp,0,1,0.76,1);
@@ -55,11 +62,15 @@ SynthDef(\help_clarinet, { |out=0,freq=400,att=0.01,amp=0.5,ampn=1,pc= 1, m= 1.2
 
 //Use it.
 (
-Pbind(
+a = Pbind(
     \instrument, \help_clarinet,
     \dur , 0.25,
     \degree, Pseq([1,5,7+3], inf),
     \amp , Pseq([0.9,0.7,0.5],inf),
-).play;
+);
+
+b = Pfx(a, \reverb);
+
+b.play;
 )
 ::

@@ -45,6 +45,15 @@ Examples::
 code::
 //Define pluck synthdef
 (
+
+SynthDef(\plucksoundboard, {arg busin=0, busout=0,size=2.8,mix=0.8,bypass=0;
+	var inp = In.ar(busin,2); 
+	var dd = [199, 211, 223, 227, 229, 233, 239, 241]*size;
+	var son = DWGSoundBoard.ar(inp,20,20,mix,dd[0],dd[1],dd[2],dd[3],dd[4],dd[5],dd[6],dd[7]);
+	son = DWGReverb3Band.ar(Mix(son),2000)+son;
+	ReplaceOut.ar(busout,Select.ar(bypass,[son,inp]));
+}).add;
+
 SynthDef(\help_dwgplucked, { |out=0, freq=440, amp=0.5, gate=1, c3=20, jw = 24, pan=0|
 	var env = Env.new([0,1, 1, 0],[0.001,0.006, 0.0005],[5,-5, -8]);
 	var inp = amp * LFClipNoise.ar(2000) * EnvGen.ar(env,gate);
@@ -63,7 +72,7 @@ a = Scale.new(
     "Custom"
 );
 
-Pbind(
+b = Pbind(
     \instrument, \help_dwgplucked,
     \scale ,a,
     \delta , Pseq([1,0.5,0.5,0.5,0.5,0.5,0.5,1,0.5,0.5,1,1]*0.25,inf),
@@ -72,6 +81,10 @@ Pbind(
     \amp , Pwhite(0.2,0.8),
     \c3 , Pseq([Pseq([1400],24),Pseq([300],24)],inf),
     \pan , Pwhite(-1,1),
-).play;
+);
+
+q = Pfx(b, \plucksoundboard);
+
+q.play;
 )
 ::
