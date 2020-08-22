@@ -1,0 +1,114 @@
+class:: PluckSynth
+summary:: Plucked physical model by Fredrik Eckerholm.
+categories:: UGens>PhysicalModels
+
+
+Description::
+
+Digital wave guide physical model of a plucked instrument. Implementation of the paper by Fredrik Eckerholm, Gianpaolo Evangelista: THE PLUCKSYNTH TOUCH STRING.
+
+
+Classmethods::
+
+method::ar
+
+argument::freq
+Sound frequency.
+
+argument::amp
+Level amplitude. Betwen 0 and 1.
+
+argument::gate
+Releases synth when value changes from >0 to 0.
+
+argument::pos
+Relative pluck position from 0 to 1.
+
+argument::c1
+Inverse of DC decay time.
+
+argument::c3
+Hight frequency loss factor.
+
+argument::release
+Release time in seconds.
+
+argument::f
+Player force.
+
+argument::m
+System mass.
+
+argument::k
+String stiffness.
+
+argument::r
+Damping coefficient.
+
+argument::l
+String length.
+
+argument::ra
+String radio.
+
+argument::rho
+density of string.
+
+
+Examples::
+
+code::
+//Define pluck synthdef
+(
+
+SynthDef(\plucksoundboard, {arg busin=0, busout=0,size=2.8,mix=0.8,bypass=0;
+	var inp = In.ar(busin,2); 
+	var dd = [199, 211, 223, 227, 229, 233, 239, 241]*size;
+	var son = DWGSoundBoard.ar(inp,20,20,mix,dd[0],dd[1],dd[2],dd[3],dd[4],dd[5],dd[6],dd[7]);
+	son = DWGReverb3Band.ar(Mix(son),2000)+son;
+	ReplaceOut.ar(busout,Select.ar(bypass,[son,inp]));
+}).add;
+
+SynthDef(\guitar, { arg out=0, freq=200, amp=0.5, t_gate=1,pos=1-1/7,c1=1,c3=35,
+release=0.1,facM=3,facK=1500,facR=5,facF0=50,fEatt=6, fEc1= -8 ,fEc2= -8,facatt=6,l=0.65,ra=0.001,rho=7850,pL=1,gate=1,pan=0;
+    var facrel = LinExp.kr(amp,0,1,2,0.005).max(0.005);
+    var rel = facrel*0.001; 
+    var att = facatt *0.001;
+    var attF = fEatt * 0.001;
+    var envF = Env.new([0,0, 1, 0], [0,attF, rel],[fEc1,fEc2]);
+    var env2 = Env.new([0,pL,pL,0],[0,att,rel],1);
+    var envR = Env.new([0,1,1,0],[0,att,rel],1);
+    var f = EnvGen.ar(envF,t_gate)*amp*facF0;
+    var m = 0.001 * facM * EnvGen.ar(env2,t_gate);
+    var k = facK * EnvGen.ar(env2,t_gate); 
+    var r = facR * EnvGen.ar(envR,t_gate); 
+    
+    var son = 32000*PluckSynth.ar(freq, amp, gate,pos,c1,c3,release,f,m,k,r,l,ra,rho);
+     Out.ar(out, Pan2.ar(son ,pan));
+}).add;
+)
+
+//Use it.
+(
+a = Scale.new(
+    #[0, 1, 3, 5, 7, 8, 10],
+    12,
+    Tuning.new([0, 0.75, 2, 3.5, 4, 5, 6, 7, 8, 9, 10, 11]),
+    "Custom"
+);
+
+b = Pbind(
+    \instrument, \guitar,
+    \scale ,a,
+    \delta , Pseq([1,0.5,0.5,0.5,0.5,0.5,0.5,1,0.5,0.5,1,1]*0.25,inf),
+    \dur , 2,
+    \degree, Pseq([1,8,8,8,8,8,8,-6,Prand([9,10,11],1),1,7,8]-8, inf),
+    \amp , Pwhite(0.1,0.5),
+	\pan , Pwhite(-1,1)
+);
+
+q = Pfx(b, \plucksoundboard);
+
+q.play;
+)
+::
