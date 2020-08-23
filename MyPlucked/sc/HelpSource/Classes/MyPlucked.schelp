@@ -46,12 +46,29 @@ code::
 //Define pluck synthdef
 (
 
+~nbuf = 2048*4;
+SynthDef(\reverb,{
+    |out = 0, len = 2000, roomsize = #[6.2,8,2.7], receiver = #[3,3,1.2], b = 0.74, hw = 0.4, n = 3, revl = 0.3, bypass = 0, dist=1,angle=0.2|
+    var in, bufL, bufR, trig, sigL, sigR, early, sig;
+	var omangle = angle*pi*0.5;
+	var source = [receiver[0] + (omangle.sin*dist), receiver[1] + (omangle.cos*dist), receiver[2]];
+	in = Mix(In.ar(out,2))*0.5;
+    bufL = LocalBuf(~nbuf);
+    bufR = LocalBuf(~nbuf);
+    trig = EarlyRefGen.kr(bufL, bufR, source, receiver, roomsize, hw, b.neg, n);
+    sigL = PartConvT.ar(in, 2048, bufL, trig);
+    sigR = PartConvT.ar(in, 2048, bufR, trig);
+    early = [sigL, sigR];
+    sig = DWGReverb3Band.ar(Mix(early) * 0.5, len) * revl + early;
+    sig = Select.ar(bypass, [sig, in]);
+    ReplaceOut.ar(out, sig);
+}).add;
+
 SynthDef(\plucksoundboard, {arg busin=0, busout=0,size=2.8,mix=0.8,bypass=0;
 	var inp = In.ar(busin,2); 
-	var dd = [199, 211, 223, 227, 229, 233, 239, 241]*size;
-	var son = DWGSoundBoard.ar(inp,20,20,mix,dd[0],dd[1],dd[2],dd[3],dd[4],dd[5],dd[6],dd[7]);
-	son = DWGReverb3Band.ar(Mix(son),2000)+son;
-	ReplaceOut.ar(busout,Select.ar(bypass,[son,inp]));
+    var dd = [199, 211, 223, 227, 229, 233, 239, 241]*size;
+	var son = DWGSoundBoard.ar(Mix(inp),20,20,mix,dd[0],dd[1],dd[2],dd[3],dd[4],dd[5],dd[6],dd[7]);
+    ReplaceOut.ar(busout,Select.ar(bypass,[son.dup,inp]));
 }).add;
 
 SynthDef(\help_dwgplucked, { |out=0, freq=440, amp=0.5, gate=1, c3=20, jw = 24, pan=0|
@@ -73,18 +90,18 @@ a = Scale.new(
 );
 
 b = Pbind(
-    \instrument, \help_dwgplucked,
+    \instrument, \guitar,
     \scale ,a,
     \delta , Pseq([1,0.5,0.5,0.5,0.5,0.5,0.5,1,0.5,0.5,1,1]*0.25,inf),
     \dur , 2,
     \degree, Pseq([1,8,8,8,8,8,8,-6,Prand([9,10,11],1),1,7,8]-8, inf),
-    \amp , Pwhite(0.2,0.8),
-    \c3 , Pseq([Pseq([1400],24),Pseq([300],24)],inf),
-    \pan , Pwhite(-1,1),
+    \amp , Pwhite(0.1,0.5),
 );
 
-q = Pfx(b, \plucksoundboard);
+c = Pfx(b, \plucksoundboard);
 
-q.play;
+d = Pfx(c, \reverb, \dist, 1);
+
+d.play;
 )
 ::

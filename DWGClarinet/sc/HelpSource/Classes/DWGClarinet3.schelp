@@ -43,10 +43,22 @@ code::
 //Define clarinet synthdef
 (
 
-SynthDef(\reverb, {arg busin=0, busout=0,mix=0.8,bypass=0;
-	var inp = In.ar(busin,2); 
-	var son = DWGReverb3Band.ar(Mix(inp),2000)*mix+inp;
-	ReplaceOut.ar(busout,Select.ar(bypass,[son,inp]));
+~nbuf = 2048*4;
+SynthDef(\reverb,{
+    |out = 0, len = 2000, roomsize = #[6.2,8,2.7], receiver = #[3,3,1.2], b = 0.74, hw = 0.4, n = 3, revl = 0.3, bypass = 0, dist=1,angle=0.2|
+    var in, bufL, bufR, trig, sigL, sigR, early, sig;
+	var omangle = angle*pi*0.5;
+	var source = [receiver[0] + (omangle.sin*dist), receiver[1] + (omangle.cos*dist), receiver[2]];
+	in = Mix(In.ar(out,2))*0.5;
+    bufL = LocalBuf(~nbuf);
+    bufR = LocalBuf(~nbuf);
+    trig = EarlyRefGen.kr(bufL, bufR, source, receiver, roomsize, hw, b.neg, n);
+    sigL = PartConvT.ar(in, 2048, bufL, trig);
+    sigR = PartConvT.ar(in, 2048, bufR, trig);
+    early = [sigL, sigR];
+    sig = DWGReverb3Band.ar(Mix(early) * 0.5, len) * revl + early;
+    sig = Select.ar(bypass, [sig, in]);
+    ReplaceOut.ar(out, sig);
 }).add;
 
 SynthDef(\help_clarinet, { |out=0,freq=400,att=0.01,amp=0.5,ampn=1,pc= 1, m= 1.2, gate= 1, release= 0.01, c1= 0.2, c3= 7 ,pan=0|
