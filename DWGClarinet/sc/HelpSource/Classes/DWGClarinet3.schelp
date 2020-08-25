@@ -79,6 +79,7 @@ a = Pbind(
     \dur , 0.25,
     \degree, Pseq([1,5,7+3], inf),
     \amp , Pseq([0.9,0.7,0.5],inf),
+	\m , Pseq([Pseq([0.8],9),Pseq([1.2],3)],inf)
 );
 
 b = Pfx(a, \reverb);

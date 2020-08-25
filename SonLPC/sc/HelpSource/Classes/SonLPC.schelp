@@ -28,17 +28,17 @@ Number of poles in analisys.
 Examples::
 
 code::
-//Define clarinet synthdef
+//Define vocoder synthdef
+//Use headphones for avoiding feedback
 (
-
 
 SynthDef(\vocoder,{
     |out = 0|
-	var N = 1024*2;
+	var n = 1024*2;
 	var hop = 1/4; 
 	var poles = MouseY.kr(4,80);
 	var sig = SoundIn.ar(0);
-	var chain = SonLPC.ar(LocalBuf(N),sig,hop,poles);
+	var chain = SonLPC.ar(LocalBuf(n),sig,hop,poles);
 	var freq = MouseX.kr(50,200);
 	var exci = Saw.ar(freq);
 	var sigout = SonLPCSynthIn.ar(chain, exci);
