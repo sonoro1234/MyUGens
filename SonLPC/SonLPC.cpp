@@ -21,10 +21,6 @@
 //#define MAXDELAY 1024
 InterfaceTable *ft;
 
-// We include vDSP even if not using for FFT, since we want to use some vectorised add/mul tricks
-#if defined(__APPLE__) && !defined(SC_IPHONE)
-#    include <Accelerate/Accelerate.h>
-#endif
 
 
 ////////////////////////////////////////
@@ -35,7 +31,8 @@ float sumW=0.;
 float TWOPI = 2.*M_PI;
 
  	for(i=0;i<N;i++){
-		A[i]=0.54 - 0.46*cos(TWOPI*i/(N-1));
+		//A[i]=0.54 - 0.46*cos(TWOPI*i/(N-1));
+		A[i]=0.5 - 0.5*cos(TWOPI*i/(N));
 		sumW+=A[i]*A[i];
 	}
 	sumW/=N;
@@ -52,15 +49,7 @@ int i;
 float sumW=0.;
 float TWOPI = 2.*M_PI;
 
- 	for(i=0;i<N;i++){
-		A[i]=0.54 - 0.46*cos(TWOPI*i/(N-1));
-		sumW+=A[i]*A[i];
-	}
-	sumW/=N;
-	sumW=sqrt(sumW);
-	for(i=0;i<N;i++)
-		A[i]/=sumW;
-
+	makewindow(A,N);
 	sumW=0.;
 	for(i=0;i<N;i +=D)
 	    sumW +=A[i]*A[i];
@@ -98,7 +87,7 @@ void classname##_Ctor(classname* unit){new(unit) classname(unit);}\
 void classname##_Dtor(classname* unit){unit->~classname();}
 static SndBuf * LPCGetBuffer(Unit * unit, uint32 bufnum, const char * ugenName, int inNumSamples)
 {
-	Print("getting buffer %d\n", bufnum);
+	//Print("getting buffer %d\n", bufnum);
 	SndBuf *buf;
 	World *world = unit->mWorld;
 
@@ -247,7 +236,8 @@ SonLPCBase::SonLPCBase(Unit *unit)
 	if(!m_fftsndbuf)
 		return;
 	m_fullbufsize = m_fftsndbuf->samples;
-	m_audiosize = m_fullbufsize - (MAX_POLES +1);
+	//space for poles and making hopsize a multiple of 64
+	m_audiosize = m_fullbufsize - 64*4;//(MAX_POLES +1);
 	//m_log2n_full  = LOG2CEIL(m_fullbufsize);
 	m_pos = 0;
 	ZOUT0(0) = ZIN0(0);
@@ -295,7 +285,7 @@ SonLPC::SonLPC(Unit* unit):SonLPCBase(unit),m_inbuf(NULL),m_inbuffpos(0){
 	
 	m_hopsize = hopsize;
 	m_shuntsize = m_audiosize - m_hopsize;
-	Print("anal hopsize %d\n",hopsize);
+	//Print("anal hopsize %d\n",hopsize);
 	if (INRATE(1) == calc_FullRate) {
 		m_numSamples = unit->mWorld->mFullRate.mBufLength;
 	} else {
@@ -462,14 +452,14 @@ void SonLPCSynth_next(SonLPCSynth *unit, int wronginNumSamples)
 	float *out = OUT(0);
 	float fbufnum = ZIN0(0);
 	float G = IN(0)[1];
-	float poles = IN(0)[2];
+	int poles = IN(0)[2];
 	int pos     = unit->m_pos;
 	int audiosize = unit->m_audiosize;
 	int numSamples = unit->m_numSamples;
 	
 	// Only run the IFFT if we're receiving a new block of input data - otherwise just output data already received
 	if (fbufnum >= 0.f){
-
+		//Print("poles %d G: %f buffnu %f\n",poles,G,fbufnum);
 		float* error = unit->m_fftsndbuf->data;
 		float* kaes = unit->m_fftsndbuf->data + audiosize;
 		float coef[MAX_POLES + 2];
@@ -478,7 +468,9 @@ void SonLPCSynth_next(SonLPCSynth *unit, int wronginNumSamples)
 		sintesisD(unit->m_buffer, error, audiosize, coef, poles, G);
 		// Then shunt the "old" time-domain output down by one hop
 		
-		int hopsamps = pos;
+		invfirstdiff(unit->m_buffer, audiosize);
+		
+		int hopsamps = pos;// + unit->mWorld->mFullRate.mBufLength;
 		if(!unit->m_windowinited){
 			makesynwindow(unit->m_synwindow, audiosize, hopsamps + unit->mWorld->mFullRate.mBufLength);
 			unit->m_windowinited = true;
@@ -489,14 +481,11 @@ void SonLPCSynth_next(SonLPCSynth *unit, int wronginNumSamples)
 			memmove(unit->m_olabuf, unit->m_olabuf+hopsamps, shuntsamps * sizeof(float));
 
 		// Then mix the "new" time-domain data in - adding at first, then just setting (copying) where the "old" is supposed to be zero.
-		#if defined(__APPLE__) && !defined(SC_IPHONE)
-			vDSP_vadd(unit->m_olabuf, 1, unit->m_buffer, 1, unit->m_olabuf, 1, shuntsamps);
-		#else
 			// NB we re-use the "pos" variable temporarily here for write rather than read
 			for(pos = 0; pos < shuntsamps; ++pos){
 				unit->m_olabuf[pos] += unit->m_buffer[pos] * unit->m_synwindow[pos];
 			}
-		#endif
+
 		//memcpy(unit->m_olabuf + shuntsamps, fftbuf + shuntsamps, (hopsamps) * sizeof(float));
 		for(pos = shuntsamps; pos < audiosize; ++pos){
 				unit->m_olabuf[pos] = unit->m_buffer[pos] * unit->m_synwindow[pos];
@@ -526,6 +515,7 @@ struct SonLPCSynthIn:public SonLPCBase
 	float * m_buffer;
 	int m_pos;
 	float * m_synwindow;
+	float *m_analwindow;
 	bool m_windowinited;
 	float * m_inbuffer;
 	int m_inpos;
@@ -533,11 +523,14 @@ struct SonLPCSynthIn:public SonLPCBase
 SCWrapClass(SonLPCSynthIn);
 SonLPCSynthIn::SonLPCSynthIn(Unit* unit):SonLPCBase(unit),m_pos(0),m_olabuf(NULL),m_inpos(0)
 {
+	m_analwindow = (float *)RTAlloc(unit->mWorld,m_audiosize * sizeof(float));
+	makewindow(m_analwindow,m_audiosize);
 	m_synwindow = (float*)RTAlloc(unit->mWorld, m_audiosize * sizeof(float));
 	m_windowinited = false;
 	m_olabuf = (float*)RTAlloc(unit->mWorld, m_audiosize * sizeof(float));
 	memset(m_olabuf, 0, m_audiosize * sizeof(float));
 	m_buffer = (float*)RTAlloc(unit->mWorld, m_audiosize * sizeof(float));
+	memset(m_buffer, 0, m_audiosize * sizeof(float));
 	m_inbuffer = (float*)RTAlloc(unit->mWorld, m_audiosize * sizeof(float));
 	memset(m_inbuffer, 0, m_audiosize * sizeof(float));
 	
@@ -562,6 +555,8 @@ SonLPCSynthIn::~SonLPCSynthIn(){
 		RTFree(mWorld, m_olabuf);
 	if(m_synwindow)
 		RTFree(mWorld, m_synwindow);
+	if(m_analwindow)
+		RTFree(mWorld, m_analwindow);
 }
 
 void SonLPCSynthIn_next(SonLPCSynthIn *unit, int wronginNumSamples)
@@ -570,45 +565,52 @@ void SonLPCSynthIn_next(SonLPCSynthIn *unit, int wronginNumSamples)
 	float *out = OUT(0);
 	float fbufnum = ZIN0(0);
 	float G = IN(0)[1];
-	float poles = IN(0)[2];
+	int poles = IN(0)[2];
 	int pos     = unit->m_pos;
 	int audiosize = unit->m_audiosize;
 	int numSamples = unit->m_numSamples;
 	////////get input
 	float *in = IN(1);
-	memmove(unit->m_inbuffer + unit->m_numSamples, unit->m_inbuffer ,(audiosize - unit->m_numSamples)* sizeof(float));
-	memcpy(unit->m_inbuffer, in ,unit->m_numSamples* sizeof(float));
-	
+	//memmove(unit->m_inbuffer + unit->m_numSamples, unit->m_inbuffer ,(audiosize - unit->m_numSamples)* sizeof(float));
+	//memcpy(unit->m_inbuffer, in ,unit->m_numSamples* sizeof(float));
+	memmove(unit->m_inbuffer , unit->m_inbuffer + unit->m_numSamples ,(audiosize - unit->m_numSamples)* sizeof(float));
+	memcpy(unit->m_inbuffer + (audiosize - unit->m_numSamples), in ,unit->m_numSamples* sizeof(float));
+//Print("buffnum %f, poles %d, G: %f \n",fbufnum,poles,G);	
 	// Only run the IFFT if we're receiving a new block of input data - otherwise just output data already received
 	if (fbufnum >= 0.f){
 
-		float* error = unit->m_inbuffer; //unit->m_fftsndbuf->data;
+		float* error = unit->m_inbuffer; 
+		
+		//float* error = unit->m_fftsndbuf->data;
 		float* kaes = unit->m_fftsndbuf->data + audiosize;
 		float coef[MAX_POLES + 2];
 		calculalfa(coef, kaes, poles);
-		G = 1;
+		//G = 1;
 		sintesisD(unit->m_buffer, error, audiosize, coef, poles, G);
 		// Then shunt the "old" time-domain output down by one hop
+		//memcpy(unit->m_buffer,error,audiosize*sizeof(float));
+		//for(int i = 0; i < unit->m_audiosize ; i++)
+		//	unit->m_buffer[i] = error[i];// * unit->m_analwindow[i];
+		//memset(error, 0, unit->m_audiosize * sizeof(float));
+		
+		//invfirstdiff(unit->m_buffer, audiosize);
 		
 		int hopsamps = pos;
 		if(!unit->m_windowinited){
 			makesynwindow(unit->m_synwindow, audiosize, hopsamps + unit->mWorld->mFullRate.mBufLength);
 			unit->m_windowinited = true;
-			Print("hopsamps is %d\n",hopsamps + unit->mWorld->mFullRate.mBufLength);
+			//Print("hopsamps is %d audiosize is %d\n",hopsamps + unit->mWorld->mFullRate.mBufLength, audiosize);
 		}
 		int shuntsamps = audiosize - hopsamps;
 		if(hopsamps != audiosize)  // There's only copying to be done if the position isn't all the way to the end of the buffer
 			memmove(unit->m_olabuf, unit->m_olabuf+hopsamps, shuntsamps * sizeof(float));
 
 		// Then mix the "new" time-domain data in - adding at first, then just setting (copying) where the "old" is supposed to be zero.
-		#if defined(__APPLE__) && !defined(SC_IPHONE)
-			vDSP_vadd(unit->m_olabuf, 1, unit->m_buffer, 1, unit->m_olabuf, 1, shuntsamps);
-		#else
+
 			// NB we re-use the "pos" variable temporarily here for write rather than read
 			for(pos = 0; pos < shuntsamps; ++pos){
 				unit->m_olabuf[pos] += unit->m_buffer[pos] * unit->m_synwindow[pos];
 			}
-		#endif
 		//memcpy(unit->m_olabuf + shuntsamps, fftbuf + shuntsamps, (hopsamps) * sizeof(float));
 		for(pos = shuntsamps; pos < audiosize; ++pos){
 				unit->m_olabuf[pos] = unit->m_buffer[pos] * unit->m_synwindow[pos];
@@ -656,7 +658,6 @@ SonLPCError::SonLPCError(Unit* unit):SonLPCBase(unit),m_pos(0),m_olabuf(NULL)
 	}
 	
 	SETCALC(SonLPCError_next);
-	//Print("done LPCSynth constructor\n");
 }
 SonLPCError::~SonLPCError(){
 	//SCWorld_Allocator alloc(ft, unit->mWorld);
@@ -707,14 +708,12 @@ void SonLPCError_next(SonLPCError *unit, int wronginNumSamples)
 			memmove(unit->m_olabuf, unit->m_olabuf+hopsamps, shuntsamps * sizeof(float));
 
 		// Then mix the "new" time-domain data in - adding at first, then just setting (copying) where the "old" is supposed to be zero.
-		#if defined(__APPLE__) && !defined(SC_IPHONE)
-			vDSP_vadd(unit->m_olabuf, 1, unit->m_buffer, 1, unit->m_olabuf, 1, shuntsamps);
-		#else
+
 			// NB we re-use the "pos" variable temporarily here for write rather than read
 			for(pos = 0; pos < shuntsamps; ++pos){
 				unit->m_olabuf[pos] += unit->m_buffer[pos] * unit->m_synwindow[pos];
 			}
-		#endif
+
 		//memcpy(unit->m_olabuf + shuntsamps, fftbuf + shuntsamps, (hopsamps) * sizeof(float));
 		for(pos = shuntsamps; pos < audiosize; ++pos){
 				unit->m_olabuf[pos] = unit->m_buffer[pos] * unit->m_synwindow[pos];
@@ -750,7 +749,6 @@ SonLPCMorph::SonLPCMorph(Unit* unit):SonLPCSynth(unit)
 	if(!m_fftsndbuf)
 		return;
 	SETCALC(SonLPCMorph_next);
-	//Print("done LPCSynth constructor\n");
 }
 void SonLPCMorph_next(SonLPCMorph *unit, int wronginNumSamples)
 {
@@ -795,14 +793,12 @@ void SonLPCMorph_next(SonLPCMorph *unit, int wronginNumSamples)
 			memmove(unit->m_olabuf, unit->m_olabuf+hopsamps, shuntsamps * sizeof(float));
 
 		// Then mix the "new" time-domain data in - adding at first, then just setting (copying) where the "old" is supposed to be zero.
-		#if defined(__APPLE__) && !defined(SC_IPHONE)
-			vDSP_vadd(unit->m_olabuf, 1, unit->m_buffer, 1, unit->m_olabuf, 1, shuntsamps);
-		#else
+
 			// NB we re-use the "pos" variable temporarily here for write rather than read
 			for(pos = 0; pos < shuntsamps; ++pos){
 				unit->m_olabuf[pos] += unit->m_buffer[pos] * unit->m_synwindow[pos];
 			}
-		#endif
+
 		//memcpy(unit->m_olabuf + shuntsamps, fftbuf + shuntsamps, (hopsamps) * sizeof(float));
 		for(pos = shuntsamps; pos < audiosize; ++pos){
 				unit->m_olabuf[pos] = unit->m_buffer[pos] * unit->m_synwindow[pos];
