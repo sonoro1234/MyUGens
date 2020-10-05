@@ -265,7 +265,7 @@ void PeakFind(PitchTracker *unit,float *data)
 				maxval = data[i];
 				maxpos = i;
 			}
-		if(((data[i-1] > data[i]) && (data[i+1] >= data[i])) and maxval >= unit->m_threshold*maxvalall)
+		if(((data[i-1] > data[i]) && (data[i+1] >= data[i])) && maxval >= unit->m_threshold*maxvalall)
 			break;
 
 	}
@@ -309,7 +309,7 @@ void PeakFindBAK(PitchTracker *unit,float *data)
 					maxval = data[i];
 					maxpos = i;
 				}
-			if(data[i] < 0 and maxval >= unit->m_threshold)
+			if(data[i] < 0 && maxval >= unit->m_threshold)
 				break;
 		}
 	}
@@ -349,7 +349,7 @@ void PeakFindSDF(PitchTracker *unit,float *data)
 					maxval = data[i];
 					maxpos = i;
 				}
-			if(((data[i-1] < data[i]) && (data[i+1] < data[i])) and maxval <= unit->m_threshold)
+			if(((data[i-1] < data[i]) && (data[i+1] < data[i])) && maxval <= unit->m_threshold)
 				break;
 		}
 	}
