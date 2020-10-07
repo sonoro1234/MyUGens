@@ -1,0 +1,97 @@
+TITLE:: AdachiAyers
+summary:: Lip blown (Trombon, trumpet) physical model.
+categories:: UGens>PhysicalModels
+
+
+Description::
+
+Digital wave guide physical model of a Lip blown instrument. Resulting audio frequency depends on flip (which should be about 0.9*desired_audio_freq) and delay (Length in samples of air tube)
+
+
+Classmethods::
+
+method::ar
+
+argument::flip
+Lip vibration frequency.
+
+argument::pO
+Mouth pressure.
+
+argument::radio
+Lip aperture in meters.
+
+argument::buffnum
+Buffer with Rgi.raw float data.
+
+argument::buffnum2
+Buffer with Rgd.raw float data.
+
+argument::buffnum3
+Buffer with Rrbri.raw float data.
+
+argument::yequil
+Y balance value.
+
+argument::gate
+Releases synth when value changes from >0 to 0.
+
+argument::delay
+Length of tube in samples.
+
+
+
+Examples::
+
+code::
+//get impulses
+(
+p = Platform.systemExtensionDir ++ "/Myplugins/AdachiAyers/impulses/trombon/";
+//p = Platform.systemExtensionDir ++ "/Myplugins/AdachiAyers/impulses/trumpet/";
+
+b = Buffer.read(s,p++"Rgi.wav");
+c = Buffer.read(s,p++"Rgd.wav");
+d = Buffer.read(s,p++"Rrbri.wav");
+e = Buffer.read(s,p++"POUI.wav");
+
+//Define reverb synthdef
+~nbuf = 2048*4;
+SynthDef(\reverb,{
+    |out = 0, len = 2000, roomsize = #[6.2,8,2.7], receiver = #[3,3,1.2], b = 0.74, hw = 0.4, n = 3, revl = 0.3, bypass = 0, dist=1,angle=0.2|
+    var in, bufL, bufR, trig, sigL, sigR, early, sig;
+	var omangle = angle*pi*0.5;
+	var source = [receiver[0] + (omangle.sin*dist), receiver[1] + (omangle.cos*dist), receiver[2]];
+	in = Mix(In.ar(out,2))*0.5;
+    bufL = LocalBuf(~nbuf);
+    bufR = LocalBuf(~nbuf);
+    trig = EarlyRefGen.kr(bufL, bufR, source, receiver, roomsize, hw, b.neg, n);
+    sigL = PartConvT.ar(in, 2048, bufL, trig);
+    sigR = PartConvT.ar(in, 2048, bufR, trig);
+    early = [sigL, sigR];
+    sig = DWGReverb3Band.ar(Mix(early) * 0.5, len) * revl + early;
+    sig = Select.ar(bypass, [sig, in]);
+    ReplaceOut.ar(out, sig);
+}).add;
+
+//Define trombone synthdef
+SynthDef("help_AdachiAyers",{arg out=0, radio=0.0085, reflec=0, reflec2=0,reflec3=0, kernel=0,trig=0,open=0.0014,gate=1,sweep=0.1,delay=800,gdamp=0.003,pan=0;
+
+	var presion = MouseX.kr(6000,40000);
+	var flip = MouseY.kr(30,1200);
+	var env = EnvGen.kr(Env.asr(0,1,0.1),gate,doneAction:2);
+	var gd2= SinOsc.kr(4,0,gdamp,1);
+	var signal = AdachiAyers.ar(Lag.kr(flip*gd2,sweep),presion,radio,reflec,reflec2,reflec3,open,1,delay)*80;
+
+	signal = Convolution2.ar(signal,kernel,trig,2048, 0.5)*env;
+	signal = LeakDC.ar(signal);
+
+	Out.ar(out,Pan2.ar(signal,pan));
+}).add;
+)
+
+//Use it
+(
+x = Synth(\help_AdachiAyers,[\kernel, e,\reflec,b,\reflec2,c,\reflec3,d]);
+r = Synth.after(x,\reverb);
+)
+::
