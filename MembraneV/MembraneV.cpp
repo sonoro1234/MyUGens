@@ -21,6 +21,10 @@
 #include "Membrane_shape.h"
 #include "assert.h"
 
+#ifndef M_PI
+#define M_PI           3.14159265358979323846
+#endif
+
 // twiddle-ables
 #define SHAPE_SZ 1 // diameter
 //#define FEEDFORWARD
@@ -29,7 +33,7 @@
 #define RIMFILTER
 #define AUDIO_INPUT
 #define TRIGGER_DURATION 1024 /* number of samples worth of white noise to inject */
-
+#define EUCLIDEAN_POS
 // some constants from Brook Eaton's roto-drum
 // http://www-ccrma.stanford.edu/~be/drum/drum.htm
 
@@ -53,6 +57,10 @@ typedef struct {
 #ifdef SELF_LOOP
   t_delay *self_loop;
 #endif
+  float last_val;
+#ifdef EUCLIDEAN_POS
+  float x,y,input_fac;
+#endif
 } t_junction;
 
 
@@ -75,6 +83,11 @@ struct Membrane : public Unit
   float loss;
   int delay_n;   // number of delays in mesh including self loops etc
   float a1;
+#ifdef EUCLIDEAN_POS
+  float saved_input_pos,saved_input_width;
+  int input_pos;
+  float Size;
+#endif
 };
 
 // declare unit generator functions
@@ -87,7 +100,32 @@ extern "C"
 };
 
 ////////////////////////////////////////////////////////////////////
-
+//calculate input_fac for each junction
+int calc_input_fac(Membrane *unit) {
+  float radius = unit->Size*0.5f;
+  float input_radius = sc_max(1.0f,unit->saved_input_width*radius);
+  //Print("input_radius %f\n",input_radius);
+  float center_x = unit->saved_input_pos * radius;
+  float center_y = 0.0f;
+  t_junction *junctions = unit->junctions;
+  double mindist = unit->Size;
+  int mindist_i = 0;
+  //distances to input
+  for (int i = 0; i < unit->shape->points_n; ++i) {
+      t_junction *junction = &junctions[i];
+	  double fx = junction->x - center_x;
+	  double fy = junction->y;//-center_y
+	  double distance = sqrt((fx * fx) + (fy * fy));
+	  if (distance < mindist)  {
+		  mindist = distance;
+		  mindist_i = i;
+	  }
+	  float fac = sc_max(0.0f, 1.0f - distance / input_radius);
+      fac = 0.5 - cos(fac * M_PI) * 0.5;
+      junction->input_fac = fac;
+  }
+  return mindist_i;
+}
 // execute one sample cycle over the mesh
 float cycle(Membrane *unit, float input, float yj_r,int input_width, int input_pos) {
   t_delay *delays = unit->delays;
@@ -100,6 +138,9 @@ float cycle(Membrane *unit, float input, float yj_r,int input_width, int input_p
   //float input1 = input/((float)input_width+1);
   float input1 = input;
   int input_pos_end = input_pos + input_width;
+#ifdef EUCLIDEAN_POS
+  input_pos = unit->input_pos;
+#endif
   
   // update all the junctions and waveguides
   for (i = 0; i < unit->shape->points_n; ++i) {
@@ -123,19 +164,25 @@ float cycle(Membrane *unit, float input, float yj_r,int input_width, int input_p
       total += (input / middle);
     }
 */
-    if (i == 0) {
+    if (i == input_pos) {//(i == 0) {
       result = total;
     }
-	
+#ifdef EUCLIDEAN_POS
+	total += junction->input_fac * input1/((float) junction->ins);
+#else
 	if(i>=input_pos && i <= input_pos_end){
 		total += input1/((float) junction->ins);
 	}
+#endif
 	
 	/*
 	if(i <= input_width){
 		total += input1/((float) junction->ins);
 	}*/
     total *= unit->loss;
+	//one pole
+	total = total*(1.f - unit->a1) + unit->a1 * junction->last_val;
+	junction->last_val = total;
 
     for (j = 0; j < junction->outs; ++j) {
       junction->out[j]->a = total - junction->in[j]->b;
@@ -155,10 +202,17 @@ float cycle(Membrane *unit, float input, float yj_r,int input_width, int input_p
     t_delay *delay = &delays[i];
     if (delay->invert) {
 #ifdef RIMFILTER
-      //delay->b = ((0.0f - delay->a) + delay->c) * 0.5f;
+	//one zero filter
+      delay->b = ((0.0f - delay->a) + delay->c) * 0.5f;
+	  delay->c = (0.0f - delay->a);
+	  
 	  //with variable a1
-	  delay->b = - delay->a + unit->a1*(delay->c + delay->a);
-      delay->c = (0.0f - delay->a);
+	  //delay->b = - delay->a + unit->a1*(delay->c + delay->a);
+      //delay->c = (0.0f - delay->a);
+	  
+	  //one pole
+	  //delay->c = delay->a * (1.f - unit->a1) + unit->a1 * delay->c;
+	  //delay->b = - delay->c;
 #else
       delay->b = 0.f - delay->a;
 #endif
@@ -182,6 +236,9 @@ void Membrane_init(Membrane* unit, int shape_type)
   SETCALC(Membrane_next_a);
 
   int SIZ = IN0(5);
+#ifdef EUCLIDEAN_POS
+  unit->Size = (SIZ * 4) + 8;
+#endif
   int doprint = IN0(7);
   
   // 2. Initialise state
@@ -245,10 +302,16 @@ void Membrane_init(Membrane* unit, int shape_type)
     from->in[from->ins++] = delay;
     to->out[to->outs++] = delay;
   }
-
+#ifdef EUCLIDEAN_POS
+  double euclidean_fac = sqrt(3);
+#endif
   for (i = 0; i < shape->points_n; ++i) {
     t_point *point = shape->points[i];
     t_junction *junction = &unit->junctions[i];
+#ifdef EUCLIDEAN_POS
+    junction->x = point->x;
+    junction->y = point->y*euclidean_fac;
+#endif
 
 #ifdef SELF_LOOP
     t_delay *delay = &unit->delays[d++];
@@ -292,10 +355,20 @@ void Membrane_next_a(Membrane *unit, int inNumSamples) {
   float loss = IN0(input_n++);
   
   float input_width_fac = sc_clip(IN0(3),0,1);
-  int input_width = ((float)unit->shape->points_n-1)*input_width_fac;
-  
   float input_pos_fac = sc_clip(IN0(4),0,1);
-  int input_pos = ((float)unit->shape->points_n-1)*input_pos_fac;
+  int input_pos = 0;
+  int input_width = 0;
+#ifdef EUCLIDEAN_POS
+  if (input_pos_fac != unit->saved_input_pos || input_width_fac != unit->saved_input_width){
+      unit->saved_input_pos = input_pos_fac;
+	  unit->saved_input_width = input_width_fac;
+	  input_pos = calc_input_fac(unit);
+	  unit->input_pos = input_pos;
+  }
+#else
+  input_width = ((float)unit->shape->points_n-1)*input_width_fac;
+  input_pos = ((float)unit->shape->points_n-1)*input_pos_fac;
+#endif
   
   unit->a1 = sc_clip(IN0(6),0,1);
   
@@ -306,8 +379,8 @@ void Membrane_next_a(Membrane *unit, int inNumSamples) {
   unit->yj = 2.f * DELTA * DELTA / (tension * tension * GAMMA * GAMMA);
   float yj_r = 1.0f / unit->yj;
 
-  if (loss >= 1) {
-    loss = 0.99999;
+  if (loss > 1) {
+    loss = 1.f;//0.99999;
   }
   unit->loss = loss;
 
