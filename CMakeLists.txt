@@ -9,7 +9,7 @@ include_directories(${SC_PATH}/external_libraries/libsndfile/)
 include_directories(${SC_PATH}/external_libraries/nova-simd)
 add_definitions(-DNOVA_SIMD)
 
-
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_SHARED_MODULE_PREFIX "")
 if(APPLE OR WIN32)
 	set(CMAKE_SHARED_MODULE_SUFFIX ".scx")
